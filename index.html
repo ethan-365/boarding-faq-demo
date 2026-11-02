@@ -210,7 +210,7 @@ async function search(raw) {
   $results.innerHTML = `<div class="panel">
     ${suggestions.length ? `<h3>Did you mean…?</h3>
       ${suggestions.map(({ e, score }) => `<details class="suggest"><summary>${esc(e.q)} ${sc(score)}</summary><div><p>${esc(e.a)}</p>${metaHtml(e, query)}</div></details>`).join("")}
-      <p>If neither of these answers your question, send it to the boarding office.</p>`
+      <p>${suggestions.length > 1 ? "If neither of these answers" : "If that doesn’t answer"} your question, send it to the boarding office.</p>`
     : `<h3>No matching answer found</h3><p>Try different wording, or send your question to the boarding office.</p>
       ${CONFIG.showScores ? `<p class="meta">Best: ${best.score.toFixed(2)} (${esc(best.e.q)})</p>` : ""}`}
     <a class="btn" href="${esc(askLink(query))}">Email the boarding office</a>
