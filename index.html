@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boarding FAQ</title>
+<style>
+  :root {
+    --navy: #17324d;
+    --ink: #2b3d4f;
+    --muted: #6b7c8c;
+    --sky: #e6f2fb;
+    --line: #c9dcec;
+    --accent: #f08c00;
+    --white: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; color: var(--ink); background: var(--white); line-height: 1.55; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.6rem; font-weight: 600; color: var(--navy); margin: 0 0 4px; }
+  .lede { margin: 0 0 20px; color: var(--muted); }
+  .search { position: relative; }
+  .search input { width: 100%; font: inherit; font-size: 1.15rem; padding: 16px 18px; border: 2px solid var(--line); border-radius: 10px; color: var(--navy); background: var(--white); }
+  .search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(240,140,0,.18); }
+  .status { font-size: .85rem; color: var(--muted); margin: 8px 2px 0; min-height: 1.3em; }
+  .status.ready::before { content: "●"; color: #2e9d5b; margin-right: 6px; }
+  .status.loading::before { content: "●"; color: var(--accent); margin-right: 6px; }
+  .status.basic::before { content: "●"; color: var(--muted); margin-right: 6px; }
+  .results { margin-top: 20px; }
+  .card { border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 0; background: var(--white); padding: 16px 18px; margin-bottom: 12px; }
+  .card h3 { margin: 0 0 6px; font-size: 1.05rem; color: var(--navy); font-weight: 600; }
+  .card p { margin: 0 0 8px; }
+  .meta { font-size: .85rem; color: var(--muted); }
+  .meta a { color: var(--navy); }
+  .score { font-size: .75rem; color: var(--muted); float: right; }
+  .nomatch { background: var(--sky); border-radius: 10px; padding: 20px; }
+  .nomatch h3 { margin: 0 0 6px; color: var(--navy); }
+  .btn { display: inline-block; margin-top: 10px; background: var(--navy); color: var(--white); text-decoration: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; }
+  .btn:hover, .btn:focus-visible { background: #0f2438; outline: 2px solid var(--accent); outline-offset: 2px; }
+  .more { margin-top: 4px; font-size: .9rem; color: var(--muted); }
+  .more a { color: var(--navy); }
+  .topic { margin-top: 28px; }
+  .topic h2 { font-size: 1.1rem; color: var(--navy); margin: 0 0 8px; padding-bottom: 6px; border-bottom: 2px solid var(--sky); }
+  details { border-bottom: 1px solid var(--sky); }
+  summary { cursor: pointer; padding: 10px 2px; color: var(--navy); font-weight: 500; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  details > div { padding: 0 2px 12px; }
+  details p { margin: 0 0 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Boarding FAQ</h1>
+  <p class="lede">Type your question in your own words. If there’s no good match, you can email the boarding office.</p>
+
+  <div class="search">
+    <label for="q" style="position:absolute;left:-9999px">Search the boarding FAQ</label>
+    <input id="q" type="search" placeholder="e.g. Can a boarder go home this weekend?" autocomplete="off">
+  </div>
+  <div id="status" class="status loading">Loading smart search…</div>
+
+  <div id="results" class="results"></div>
+  <div id="all"></div>
+</div>
+
+<script>
+/* ===================== EDIT BELOW ===================== */
+const CONFIG = {
+  contactEmail: "CHANGE-ME@tss.qld.edu.au",   // fallback contact
+  emailSubject: "Boarding FAQ question",
+  threshold: 0.45,        // smart search: minimum score to count as a match (0 to 1)
+  basicThreshold: 0.5,    // keyword-only fallback threshold
+  maxResults: 3,
+  showScores: false       // set true while testing to tune the threshold
+};
+
+// Sample content only. Replace with real boarding Q&As.
+// alts = other ways staff might ask the same thing (improves matching).
+const FAQ = [
+  { topic: "Leave and exeats", q: "How do I approve a weekend leave request?",
+    alts: ["exeat", "weekend pass", "can a boarder go home on the weekend", "sign out a boarder"],
+    a: "Weekend leave is approved by the house parent on duty in [system]. Requests close Thursday at 5pm. Late requests need Head of Boarding approval." },
+  { topic: "Leave and exeats", q: "What time do boarders need to be back from leave?",
+    alts: ["return time", "when do boys come back on Sunday", "late return from leave"],
+    a: "Boarders must sign back in by 6pm Sunday. If a boarder will be late, the parent should contact the house parent on duty before 5pm." },
+  { topic: "Daily routine", q: "What time is lights out?",
+    alts: ["bedtime", "when do boarders go to bed", "phones handed in at night"],
+    a: "Lights out is 9pm for Years 7 to 9, 9:30pm for Years 10 to 11, and 10pm for Year 12. Devices are handed in 30 minutes before." },
+  { topic: "Daily routine", q: "When is prep?",
+    alts: ["study time", "homework session", "evening study"],
+    a: "Prep runs Monday to Thursday, 7pm to 8:30pm, in house study rooms. Year 12 may study in the library with approval." },
+  { topic: "Meals", q: "What are the dining hall meal times?",
+    alts: ["breakfast time", "when is dinner", "lunch times"],
+    a: "Breakfast 7 to 8am, lunch during school breaks, dinner 5:30 to 6:30pm. Weekend brunch runs 9 to 10:30am." },
+  { topic: "Meals", q: "How do I arrange a late meal for a boarder?",
+    alts: ["missed dinner", "keep a meal aside", "boarder back late from sport and hungry"],
+    a: "Email the dining hall manager by 3pm with the boarder’s name and house. Late meals are kept in the servery fridge, labelled by house." },
+  { topic: "Facilities and IT", q: "How do I report something broken in a boarding house?",
+    alts: ["maintenance request", "broken window", "leaking tap", "fix a door"],
+    a: "Log a maintenance request in [system]. For urgent safety issues (water leaks, electrical faults), also call the maintenance on-call number." },
+  { topic: "Facilities and IT", q: "A boarder’s laptop won’t connect to the Wi-Fi. What should I do?",
+    alts: ["internet not working", "no wifi", "laptop offline", "network problem"],
+    a: "Ask the boarder to restart the laptop and reconnect to the school network. If it still fails, they can visit the IT help desk during school hours.",
+    contact: "CHANGE-ME-IT@tss.qld.edu.au" },
+  { topic: "Facilities and IT", q: "How do I book the boarding minibus?",
+    alts: ["vehicle booking", "book the van", "transport for an outing"],
+    a: "Book through [system] at least 48 hours ahead. Drivers need a current school driver authorisation." },
+  { topic: "Visitors", q: "Can parents visit boarders during the week?",
+    alts: ["visitor sign-in", "family visiting", "parents coming to the house"],
+    a: "Yes, between 4 and 6pm on weekdays. Visitors sign in at the house office and must not enter dormitory areas." }
+];
+/* ===================== EDIT ABOVE ===================== */
+
+const $q = document.getElementById("q");
+const $status = document.getElementById("status");
+const $results = document.getElementById("results");
+const $all = document.getElementById("all");
+
+let extractor = null;
+let entryVecs = null; // per FAQ entry: array of vectors (question + alts)
+
+const STOP = new Set("a an the is are am do does did i me my we our you your to of in on at for and or can how what when where who why should with be it this that there their they he she his her boy boys girl girls boarder boarders".split(" "));
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const tokens = s => s.toLowerCase().replace(/[^a-z0-9\s-]/g, " ").split(/\s+/).filter(t => t.length > 1 && !STOP.has(t));
+
+FAQ.forEach(e => { e._hay = tokens([e.q, ...(e.alts || []), e.a, e.topic].join(" ")); });
+
+function keywordScore(qTok, e) {
+  if (!qTok.length) return 0;
+  let hits = 0;
+  for (const t of qTok) {
+    if (e._hay.some(h => h === t || (t.length >= 4 && (h.startsWith(t) || t.startsWith(h) && h.length >= 4)))) hits++;
+  }
+  return hits / qTok.length;
+}
+
+const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+
+function mailto(email, question) {
+  const body = "Hi,\n\nI couldn’t find an answer in the boarding FAQ.\n\nMy question: " + question + "\n\nThanks";
+  return "mailto:" + email + "?subject=" + encodeURIComponent(CONFIG.emailSubject) + "&body=" + encodeURIComponent(body);
+}
+
+function renderAll() {
+  const topics = [...new Set(FAQ.map(e => e.topic))];
+  $all.innerHTML = topics.map(t => `
+    <section class="topic"><h2>${esc(t)}</h2>
+      ${FAQ.filter(e => e.topic === t).map(e => `
+        <details><summary>${esc(e.q)}</summary>
+          <div><p>${esc(e.a)}</p><div class="meta">Contact: <a href="mailto:${esc(e.contact || CONFIG.contactEmail)}">${esc(e.contact || CONFIG.contactEmail)}</a></div></div>
+        </details>`).join("")}
+    </section>`).join("");
+}
+
+let seq = 0;
+async function search(raw) {
+  const query = raw.trim();
+  const mySeq = ++seq;
+  if (!query) { $results.innerHTML = ""; $all.style.display = ""; return; }
+  $all.style.display = "none";
+
+  const qTok = tokens(query);
+  let qVec = null;
+  if (extractor) {
+    const out = await extractor(query, { pooling: "mean", normalize: true });
+    qVec = out.tolist()[0];
+  }
+  if (mySeq !== seq) return; // a newer search started
+
+  const scored = FAQ.map((e, i) => {
+    const kw = keywordScore(qTok, e);
+    let score = kw;
+    if (qVec) {
+      const sem = Math.max(...entryVecs[i].map(v => dot(qVec, v)));
+      score = 0.8 * sem + 0.2 * kw;
+    }
+    return { e, score };
+  }).sort((a, b) => b.score - a.score);
+
+  const th = qVec ? CONFIG.threshold : CONFIG.basicThreshold;
+  const hits = scored.filter(s => s.score >= th).slice(0, CONFIG.maxResults);
+
+  if (!hits.length) {
+    $results.innerHTML = `
+      <div class="nomatch">
+        <h3>No matching answer found</h3>
+        <p>Try different wording, or send your question to the boarding office.</p>
+        <a class="btn" href="${esc(mailto(CONFIG.contactEmail, query))}">Email the boarding office</a>
+        ${CONFIG.showScores ? `<p class="meta">Best score: ${scored[0].score.toFixed(2)} (${esc(scored[0].e.q)})</p>` : ""}
+      </div>`;
+    return;
+  }
+
+  $results.innerHTML = hits.map(({ e, score }) => {
+    const email = e.contact || CONFIG.contactEmail;
+    return `<article class="card">
+      ${CONFIG.showScores ? `<span class="score">${score.toFixed(2)}</span>` : ""}
+      <h3>${esc(e.q)}</h3>
+      <p>${esc(e.a)}</p>
+      <div class="meta">Contact: <a href="mailto:${esc(email)}">${esc(email)}</a></div>
+    </article>`;
+  }).join("") + `<p class="more">Not what you’re after? <a href="${esc(mailto(CONFIG.contactEmail, query))}">Email your question to the boarding office</a>.</p>`;
+}
+
+let timer;
+$q.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => search($q.value), 250); });
+$q.addEventListener("keydown", ev => { if (ev.key === "Enter") { clearTimeout(timer); search($q.value); } });
+
+renderAll();
+
+(async () => {
+  try {
+    const { pipeline, env } = await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2");
+    env.allowLocalModels = false;
+    extractor = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
+    const texts = [], owner = [];
+    FAQ.forEach((e, i) => [e.q, ...(e.alts || [])].forEach(t => { texts.push(t); owner.push(i); }));
+    const vecs = (await extractor(texts, { pooling: "mean", normalize: true })).tolist();
+    entryVecs = FAQ.map(() => []);
+    vecs.forEach((v, j) => entryVecs[owner[j]].push(v));
+    $status.className = "status ready";
+    $status.textContent = "Smart search ready";
+    if ($q.value.trim()) search($q.value);
+  } catch (err) {
+    console.warn("Smart search unavailable, using keyword search:", err);
+    extractor = null;
+    $status.className = "status basic";
+    $status.textContent = "Basic search (smart search couldn’t load)";
+  }
+})();
+</script>
+</body>
+</html>
